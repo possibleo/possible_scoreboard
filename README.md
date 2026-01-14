@@ -2,6 +2,9 @@
 
 A modern scoreboard for FiveM servers with QBX, QB-Core, and ESX support.
 
+## Preview
+https://www.youtube.com/watch?v=O21HMDQ8aVg
+
 ## Installation
 
 1. Download the latest release
