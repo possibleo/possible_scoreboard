@@ -3,6 +3,9 @@ lib.locale()
 local config = require('shared.config')
 local Framework = require('shared.bridge')
 
+-- Webhook URL for logging (server-side only for security - clients cannot access this)
+local WebhookUrl = ''
+
 ---Checks if a player has any of the configured staff ace permissions
 ---@param playerId string The player server ID as a string
 ---@return boolean True if player has staff permissions
@@ -19,7 +22,7 @@ end
 ---@param src number The player server ID who performed the action
 ---@param message string The log message
 local function logEvent(src, message)
-    if not config.Logging.enabled then return end
+    if not config.Logging or not config.Logging.enabled then return end
 
     local playerName = Framework.getPlayerName(src)
     local logMessage = string.format("Player %s (%d): %s", playerName, src, message)
@@ -31,8 +34,7 @@ local function logEvent(src, message)
     end
 
     if service == 'webhook' or service == 'both' then
-        local webhookUrl = config.Logging.webhookUrl
-        if webhookUrl and webhookUrl ~= '' then
+        if WebhookUrl and WebhookUrl ~= '' then
             local embed = {
                 {
                     ["color"] = 3447003,
@@ -43,7 +45,7 @@ local function logEvent(src, message)
                     },
                 }
             }
-            PerformHttpRequest(webhookUrl, function(err, text, headers) end, 'POST', json.encode({embeds = embed}), { ['Content-Type'] = 'application/json' })
+            PerformHttpRequest(WebhookUrl, function(err, text, headers) end, 'POST', json.encode({embeds = embed}), { ['Content-Type'] = 'application/json' })
         end
     end
 end

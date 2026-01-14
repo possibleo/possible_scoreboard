@@ -21,7 +21,7 @@ return {
     Logging = {
         enabled = false,
         service = 'oxlib', -- 'oxlib', 'webhook', or 'both'
-        webhookUrl = '',
+        -- NOTE: Webhook URL is configured in server/server.lua for security
     },
     ShowPlayerIDs = true,
     ShowPeersBehindCurtain = true,
