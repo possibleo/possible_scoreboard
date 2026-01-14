@@ -15,6 +15,39 @@ local function isPlayerStaff(playerId)
     return false
 end
 
+---Logs an event to the configured logging service
+---@param src number The player server ID who performed the action
+---@param message string The log message
+local function logEvent(src, message)
+    if not config.Logging.enabled then return end
+
+    local playerName = Framework.getPlayerName(src)
+    local logMessage = string.format("Player %s (%d): %s", playerName, src, message)
+
+    local service = config.Logging.service
+
+    if service == 'oxlib' or service == 'both' then
+        lib.logger(src, 'Scoreboard', logMessage)
+    end
+
+    if service == 'webhook' or service == 'both' then
+        local webhookUrl = config.Logging.webhookUrl
+        if webhookUrl and webhookUrl ~= '' then
+            local embed = {
+                {
+                    ["color"] = 3447003,
+                    ["title"] = "**Possible Scoreboard Logs**",
+                    ["description"] = logMessage,
+                    ["footer"] = {
+                        ["text"] = os.date("%Y-%m-%d %H:%M:%S"),
+                    },
+                }
+            }
+            PerformHttpRequest(webhookUrl, function(err, text, headers) end, 'POST', json.encode({embeds = embed}), { ['Content-Type'] = 'application/json' })
+        end
+    end
+end
+
 lib.callback.register('possible_scoreboard:server:getPlayers', function(source)
     local players = {}
     local allPlayers = GetPlayers()
@@ -76,9 +109,12 @@ lib.callback.register('possible_scoreboard:server:getPlayerDetails', function(so
         end
     end
 
+    local targetName = Framework.getPlayerName(targetPlayerId)
+    logEvent(source, string.format("Viewed details of %s (%d)", targetName, targetPlayerId))
+
     return {
         id = targetPlayerId,
-        name = Framework.getPlayerName(targetPlayerId),
+        name = targetName,
         steamName = GetPlayerName(targetPlayerId) or 'Unknown',
         ping = GetPlayerPing(targetPlayerId),
         job = Framework.getPlayerJob(targetPlayerId),
@@ -100,6 +136,7 @@ lib.callback.register('possible_scoreboard:server:staffAction', function(source,
     local targetCoords = GetEntityCoords(targetPed)
     local sourcePed = GetPlayerPed(source)
     local sourceCoords = GetEntityCoords(sourcePed)
+    local targetName = Framework.getPlayerName(targetPlayerId)
 
     if action == 'teleport' then
         TriggerClientEvent('possible_scoreboard:client:teleportTo', source, {
@@ -107,6 +144,7 @@ lib.callback.register('possible_scoreboard:server:staffAction', function(source,
             y = targetCoords.y,
             z = targetCoords.z
         })
+        logEvent(source, string.format("Teleported to %s (%d)", targetName, targetPlayerId))
         return { success = true }
 
     elseif action == 'bring' then
@@ -115,17 +153,20 @@ lib.callback.register('possible_scoreboard:server:staffAction', function(source,
             y = sourceCoords.y,
             z = sourceCoords.z
         })
+        logEvent(source, string.format("Brought %s (%d) to their location", targetName, targetPlayerId))
         return { success = true }
 
     elseif action == 'freeze' then
         local isFrozen = Player(targetPlayerId).state['possible_scoreboard:frozen'] or false
         Player(targetPlayerId).state:set('possible_scoreboard:frozen', not isFrozen, true)
         TriggerClientEvent('possible_scoreboard:client:setFreeze', targetPlayerId, not isFrozen)
+        local freezeAction = not isFrozen and "Froze" or "Unfroze"
+        logEvent(source, string.format("%s %s (%d)", freezeAction, targetName, targetPlayerId))
         return { success = true, frozen = not isFrozen }
 
     elseif action == 'spectate' then
-        local targetName = Framework.getPlayerName(targetPlayerId)
         TriggerClientEvent('possible_scoreboard:client:spectate', source, targetPlayerId, targetName)
+        logEvent(source, string.format("Started spectating %s (%d)", targetName, targetPlayerId))
         return { success = true }
     end
 
