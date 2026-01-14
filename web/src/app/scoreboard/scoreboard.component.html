@@ -1,0 +1,153 @@
+<p-dialog
+    [(visible)]="visible"
+    position="right"
+    [modal]="false"
+    [closable]="false"
+    [draggable]="false"
+    [focusOnShow]="false"
+    [style]="{ width: '400px', height: '650px' }"
+    styleClass="scoreboard"
+    (onHide)="onHide()"
+>
+    <ng-template #header>
+        <div class="scoreboard__header">
+            <div class="scoreboard__title">
+                <img src="assets/logo.png" alt="Logo" class="scoreboard__logo" />
+                <span>{{ locales().players_online }}</span>
+            </div>
+            <p-tag [value]="players().length.toString()" />
+        </div>
+    </ng-template>
+
+    <div class="scoreboard__content">
+        <div class="scoreboard__tabs">
+            @for (tab of tabs(); track tab.id) {
+                <button
+                    class="scoreboard__tab"
+                    [class.scoreboard__tab--active]="activeTab() === tab.id"
+                    (click)="setActiveTab(tab.id)"
+                >
+                    {{ tab.label }}
+                    <span class="scoreboard__tab-count">{{ getTabCount(tab.id) }}</span>
+                </button>
+            }
+        </div>
+
+        <div class="scoreboard__players">
+            <div class="scoreboard__players-header">
+                <span class="scoreboard__col scoreboard__col--id">{{ locales().col_id }}</span>
+                <span class="scoreboard__col scoreboard__col--name">{{ locales().col_name }}</span>
+                <span class="scoreboard__col scoreboard__col--ping">{{ locales().col_ping }}</span>
+            </div>
+
+            <div class="scoreboard__players-list">
+                @for (player of filteredPlayers(); track player.id) {
+                    <div
+                        class="scoreboard__player"
+                        [class.scoreboard__player--has-action]="hasActiveAction(player.id)"
+                        (contextmenu)="onPlayerContextMenu($event, player)"
+                    >
+                        <span class="scoreboard__col scoreboard__col--id">{{ player.id }}</span>
+                        <span class="scoreboard__col scoreboard__col--name">
+                            {{ getDisplayName(player) }}
+                            @if (player.isStaff) {
+                                <i class="pi pi-shield scoreboard__staff-badge" [title]="locales().staff"></i>
+                            }
+                            @if (isPlayerFrozen(player.id)) {
+                                <i class="pi pi-lock scoreboard__action-badge" [pTooltip]="locales().player_frozen" tooltipPosition="top"></i>
+                            }
+                            @if (isPlayerSpectated(player.id)) {
+                                <i class="pi pi-eye scoreboard__action-badge" [pTooltip]="locales().spectating_player" tooltipPosition="top"></i>
+                            }
+                        </span>
+                        <span class="scoreboard__col scoreboard__col--ping">
+                            <p-tag
+                                [value]="player.ping + 'ms'"
+                                [severity]="getPingClass(player.ping)"
+                            />
+                        </span>
+                    </div>
+                } @empty {
+                    <div class="scoreboard__empty">
+                        <i class="pi pi-info-circle"></i>
+                        <span>{{ locales().no_players }}</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="scoreboard__footer">
+            <label class="scoreboard__toggle">
+                <p-toggleSwitch [ngModel]="showSteamNames" (onChange)="onToggleSteamNames($event)" />
+                <span class="scoreboard__toggle-label">{{ showSteamNames ? locales().steam_name : locales().rp_name }}</span>
+            </label>
+            <div class="scoreboard__footer-hints">
+                <span><kbd>ESC</kbd> {{ locales().close }}</span>
+                <span><kbd>Scroll</kbd> {{ locales().scroll_view_more }}</span>
+            </div>
+        </div>
+    </div>
+</p-dialog>
+
+@if (isViewerStaff()) {
+    <p-contextMenu #contextMenu [model]="contextMenuItems()" appendTo="body" />
+}
+
+<p-dialog
+    [(visible)]="showDetailsModal"
+    [header]="locales().player_details"
+    [modal]="true"
+    [closable]="true"
+    [style]="{ width: '400px' }"
+    styleClass="scoreboard-details"
+    (onHide)="onDetailsModalHide()"
+>
+    @if (playerDetails(); as details) {
+        <div class="details">
+            <div class="details__row">
+                <span class="details__label">{{ locales().col_id }}</span>
+                <p-tag [value]="details.id.toString()" severity="info" />
+            </div>
+            <div class="details__row">
+                <span class="details__label">{{ locales().col_name }}</span>
+                <span class="details__value">{{ details.name }}</span>
+            </div>
+            <div class="details__row">
+                <span class="details__label">{{ locales().col_ping }}</span>
+                <p-tag [value]="details.ping + 'ms'" [severity]="getPingClass(details.ping)" />
+            </div>
+            <div class="details__row">
+                <span class="details__label">{{ locales().col_job }}</span>
+                <p-tag [value]="details.job || locales().not_available" severity="secondary" />
+            </div>
+            <div class="details__divider"></div>
+            <div class="details__section">{{ locales().identifiers }}</div>
+            @for (entry of getIdentifierEntries(details.identifiers); track entry.key) {
+                <div class="details__identifier">
+                    <span class="details__identifier-key">{{ entry.key }}</span>
+                    <span class="details__identifier-value">{{ entry.value }}</span>
+                </div>
+            }
+        </div>
+    } @else {
+        <div class="details__loading">
+            <i class="pi pi-spin pi-spinner"></i>
+            <span>{{ locales().loading }}</span>
+        </div>
+    }
+</p-dialog>
+
+@if (isCurrentlySpectating()) {
+    <div class="spectate-overlay">
+        <div class="spectate-overlay__content">
+            <i class="pi pi-eye spectate-overlay__icon"></i>
+            <div class="spectate-overlay__info">
+                <span class="spectate-overlay__label">{{ locales().spectating }}</span>
+                <span class="spectate-overlay__name">{{ spectatingPlayerName() }}</span>
+            </div>
+            <button class="spectate-overlay__stop" (click)="stopSpectating()">
+                <kbd><i class="pi pi-sign-out"></i> BACKSPACE</kbd>
+            </button>
+        </div>
+    </div>
+}

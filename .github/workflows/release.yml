@@ -1,0 +1,95 @@
+name: Build and Package FiveM Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    name: Build and Package Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        working-directory: ./web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Angular application
+        working-directory: ./web
+        run: pnpm build
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create release directory
+        run: mkdir -p release/possible_scoreboard
+
+      - name: Copy files to release directory
+        run: |
+          # Copy web build output
+          mkdir -p release/possible_scoreboard/web
+          cp -r web/dist release/possible_scoreboard/web/
+
+          # Copy Lua files
+          cp -r client release/possible_scoreboard/
+          cp -r server release/possible_scoreboard/
+          cp -r shared release/possible_scoreboard/
+
+          # Copy locales
+          cp -r locales release/possible_scoreboard/
+
+          # Copy root files
+          cp fxmanifest.lua release/possible_scoreboard/
+          cp README.md release/possible_scoreboard/
+          cp LICENSE release/possible_scoreboard/
+
+      - name: Create release archive
+        working-directory: ./release
+        run: zip -r ../possible_scoreboard-${{ steps.version.outputs.VERSION }}.zip possible_scoreboard
+
+      - name: Verify archive contents
+        run: |
+          echo "Archive contents:"
+          unzip -l possible_scoreboard-${{ steps.version.outputs.VERSION }}.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+          name: Release ${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            possible_scoreboard-${{ steps.version.outputs.VERSION }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

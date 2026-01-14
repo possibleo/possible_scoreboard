@@ -1,0 +1,17 @@
+# Node modules (in web folder)
+web/node_modules/
+
+# Build output
+web/dist/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
