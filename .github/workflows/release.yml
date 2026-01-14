@@ -70,7 +70,6 @@ jobs:
           # Copy root files
           cp fxmanifest.lua release/possible_scoreboard/
           cp README.md release/possible_scoreboard/
-          cp LICENSE release/possible_scoreboard/
 
       - name: Create release archive
         working-directory: ./release
